@@ -505,6 +505,30 @@ document.getElementById("nameFilter").addEventListener("change", render);
 document.getElementById("startDate").addEventListener("change", render);
 document.getElementById("endDate").addEventListener("change", render);
 
+/* ===== 카카오톡 등 인앱 브라우저: 링크를 외부 브라우저로 열어 목록 유지 ===== */
+const UA = navigator.userAgent || "";
+const IN_KAKAO   = /KAKAOTALK/i.test(UA);
+const IN_INAPP   = IN_KAKAO || /(FBAN|FBAV|Instagram|Line|NAVER|Daum)/i.test(UA);
+
+document.getElementById("videoList").addEventListener("click", (e)=>{
+  const a = e.target.closest("a.card");
+  if(!a) return;
+
+  // 새 탭/수정자 클릭(데스크톱)은 그대로 둠
+  if(e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1) return;
+
+  if(IN_KAKAO){
+    // 카톡 내장 브라우저 → 시스템 기본 브라우저로 열기 (목록은 카톡에 유지)
+    e.preventDefault();
+    location.href = "kakaotalk://web/openExternal?url=" + encodeURIComponent(a.href);
+  } else if(IN_INAPP){
+    // 기타 인앱 웹뷰 → 새 창으로 분리해 목록 유지
+    e.preventDefault();
+    window.open(a.href, "_blank");
+  }
+  // 일반 크롬/사파리는 기본 동작(같은 탭 이동 + 뒤로가기 복원)
+});
+
 loadAll();
 </script>
 
