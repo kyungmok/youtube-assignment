@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>J-Rock 소모임 영상 모음</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+
+<style>
+body {
+  background:#0b0b0b;
+  color:#fff;
+  margin:0;
+  padding:20px;
+  font-family:'Noto Sans KR', sans-serif;
+}
+
+.header { margin-bottom:20px; }
+h2 { margin:0 0 5px 0; }
+.notice { font-size:13px; color:#888; }
+
+.controls {
+  background:#111;
+  padding:15px;
+  border-radius:16px;
+  margin:20px 0;
+}
+
+.filters {
+  display:flex;
+  gap:15px;
+  flex-wrap:wrap;
+}
+
+.filter-group {
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+}
+
+select, input {
+  padding:8px;
+  border-radius:8px;
+  border:none;
+  background:#1f1f1f;
+  color:#fff;
+}
+
+.tabs {
+  display:flex;
+  gap:10px;
+  margin-top:15px;
+}
+
+.tab {
+  padding:8px 16px;
+  border-radius:20px;
+  background:#1a1a1a;
+  cursor:pointer;
+}
+
+.tab.active { background:#fff; color:#000; }
+
+.grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(260px,1fr));
+  gap:20px;
+}
+
+/* =========================
+   CARD FIX (완전 통일)
+========================= */
+.card {
+  background:#121212;
+  border-radius:16px;
+  overflow:hidden;
+  cursor:pointer;
+
+  height:340px;
+  display:flex;
+  flex-direction:column;
+}
+
+/* 이름 */
+.name-bar {
+  background:#ffffff;
+  color:#000;
+  text-align:center;
+  padding:8px;
+  font-size:14px;
+  font-weight:700;
+  flex-shrink:0;
+}
+
+/* 과제 */
+.name-bar.assignment {
+  background:#d9ff00;
+  color:#111;
+  text-shadow:0 0 6px rgba(217,255,0,0.35);
+}
+
+/* 연습 */
+.name-bar.free {
+  background:#ffffff;
+  color:#000;
+}
+
+/* =========================
+   MEDIA FIX (핵심)
+========================= */
+.thumb-wrap {
+  width:100%;
+  aspect-ratio:16/9;
+  background:#000;
+
+  flex-shrink:0;
+  overflow:hidden;
+  display:flex;
+}
+
+.thumb-wrap img {
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}
+
+/* 외부링크 */
+.preview {
+  width:100%;
+  height:100%;
+  background:#1a1a1a;
+  padding:12px;
+  box-sizing:border-box;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+}
+
+.preview-title {
+  font-size:13px;
+  font-weight:600;
+  margin-bottom:5px;
+}
+
+.preview-url {
+  font-size:11px;
+  color:#888;
+  word-break:break-all;
+}
+
+/* =========================
+   INFO FIX
+========================= */
+.info {
+  padding:12px;
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  min-height:0;
+}
+
+/* 제목 2줄 고정 */
+.title {
+  font-size:14px;
+  margin-bottom:4px;
+  line-height:1.3;
+
+  display:-webkit-box;
+  -webkit-line-clamp:2;
+  -webkit-box-orient:vertical;
+
+  overflow:hidden;
+  min-height:36px;
+}
+
+.sub {
+  font-size:12px;
+  color:#aaa;
+}
+
+/* 메모 항상 하단 */
+.memo {
+  margin-top:auto;
+  font-size:12px;
+  color:#bbb;
+  background:#1a1a1a;
+  padding:6px 8px;
+  border-radius:8px;
+
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+
+  flex-shrink:0;
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">
+  <h2>🎸 영상 모음</h2>
+  <div class="notice">시트 입력 후 1분 내 반영</div>
+</div>
+
+<div class="controls">
+  <div class="filters">
+    <div>
+      <span>닉네임</span><br>
+      <select id="nameFilter"><option value="">전체</option></select>
+    </div>
+
+    <div>
+      <span>시작일</span><br>
+      <input type="date" id="startDate">
+    </div>
+
+    <div>
+      <span>종료일</span><br>
+      <input type="date" id="endDate">
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="setFilter('all',0)">전체</div>
+    <div class="tab" onclick="setFilter('assignment',1)">과제</div>
+    <div class="tab" onclick="setFilter('free',2)">연습</div>
+  </div>
+</div>
+
+<div class="grid" id="videoList"></div>
+
+<script>
+const urls = {
+  assignment: "https://docs.google.com/spreadsheets/d/1kTpj8r_CAJTbxjRgtbF2YZ4rOXsB9shoZ2YPO6o8wzE/export?format=csv&gid=0",
+  free: "https://docs.google.com/spreadsheets/d/1kTpj8r_CAJTbxjRgtbF2YZ4rOXsB9shoZ2YPO6o8wzE/export?format=csv&gid=570271576"
+};
+
+const API_KEY = "AIzaSyDeLlRW5ipOfesPCPu9ruc0FCC198fqNY0";
+
+let allData = [];
+let currentFilter = "all";
+
+/* localStorage 캐시 (재방문 시 즉시 표시) */
+let ytCache      = loadStore("ytCache");
+let previewCache = loadStore("previewCache");
+
+function loadStore(k){
+  try { return JSON.parse(localStorage.getItem(k) || "{}"); }
+  catch { return {}; }
+}
+function saveStore(){
+  try {
+    localStorage.setItem("ytCache", JSON.stringify(ytCache));
+    localStorage.setItem("previewCache", JSON.stringify(previewCache));
+  } catch(e){}
+}
+
+/* HTML escape (제목/메모 안전 삽입) */
+function esc(s){
+  return String(s||"").replace(/[&<>"']/g, c=>({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  }[c]));
+}
+
+/* date parse */
+function parseDate(str){
+  if(!str) return new Date(0);
+  return new Date(
+    str.trim().replace(/\.$/,"").replace(/\./g,"-").replace(/\s/g,"")
+  );
+}
+
+/* youtube id */
+function getVideoId(url){
+  if(!url) return null;
+  if(url.includes("youtu.be")) return url.split("/").pop().split("?")[0];
+  if(url.includes("shorts"))   return url.split("/shorts/")[1].split("?")[0];
+  if(url.includes("v="))       return url.split("v=")[1].split("&")[0];
+}
+
+/* ===== 유튜브 제목 배치 조회 (id 최대 50개/1콜) ===== */
+async function fetchYTTitles(ids){
+  const missing = [...new Set(ids)].filter(id => id && !ytCache[id]);
+  for(let i=0; i<missing.length; i+=50){
+    const chunk = missing.slice(i, i+50);
+    try {
+      const res  = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${chunk.join(",")}&key=${API_KEY}`);
+      const data = await res.json();
+      (data.items || []).forEach(it => { ytCache[it.id] = it.snippet.title; });
+    } catch(e){}
+    chunk.forEach(id => { if(!ytCache[id]) ytCache[id] = "유튜브 영상"; });
+  }
+  saveStore();
+}
+
+/* ===== 외부링크 미리보기 (지연 로딩) ===== */
+async function getPreview(url){
+  if(previewCache[url]) return previewCache[url];
+  try {
+    const res  = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}`);
+    const data = await res.json();
+    const result = { title: data?.data?.title || "외부 링크", url };
+    previewCache[url] = result;
+    saveStore();
+    return result;
+  } catch {
+    return { title:"외부 링크", url };
+  }
+}
+
+/* ===== load: 캐시 먼저 그리고 네트워크로 갱신 ===== */
+function loadAll(){
+  const cached = loadStore("csvCache");
+  if(cached.assignment && cached.free){
+    buildData(cached.assignment, cached.free);   // 즉시 렌더
+  }
+  Promise.all([
+    fetch(urls.assignment).then(r=>r.text()),
+    fetch(urls.free).then(r=>r.text())
+  ]).then(([a,f])=>{
+    try { localStorage.setItem("csvCache", JSON.stringify({assignment:a, free:f})); } catch(e){}
+    buildData(a, f);
+  });
+}
+
+function buildData(a, f){
+  allData = [];
+  parseCSV(a, "assignment");
+  parseCSV(f, "free");
+  createNames();
+  render();
+}
+
+/* parse */
+function parseCSV(data, type){
+  data.split("\n").slice(4).forEach(row=>{
+    const c = row.split(",");
+    if(c.length < 3) return;
+
+    const date     = c[0];
+    const name     = c[1];
+    const url      = c[2];
+    const external = c[3] || "";
+    const memo     = (c.slice(4).join(",") || "").trim().slice(0,30);
+    const videoId  = getVideoId(url);
+
+    if(!videoId && !external) return;
+
+    allData.push({date,name,url,external,memo,videoId,type});
+  });
+}
+
+/* names (중복 옵션 방지) */
+function createNames(){
+  const sel = document.getElementById("nameFilter");
+  sel.innerHTML = '<option value="">전체</option>';
+  [...new Set(allData.map(v=>v.name))].forEach(n=>{
+    const o = document.createElement("option");
+    o.value = n;
+    o.textContent = n;
+    sel.appendChild(o);
+  });
+}
+
+/* ===== render: 뼈대를 즉시 그리고, 제목/미리보기는 나중에 채움 ===== */
+let previewObserver = null;
+
+function render(){
+  const box = document.getElementById("videoList");
+
+  const selName = document.getElementById("nameFilter").value;
+  const start   = document.getElementById("startDate").value;
+  const end     = document.getElementById("endDate").value;
+
+  const startDate = start ? parseDate(start) : null;
+  const endDate   = end   ? parseDate(end)   : null;
+
+  const list = allData
+    .slice()
+    .sort((a,b)=> parseDate(b.date) - parseDate(a.date))
+    .filter(v=>{
+      const current = parseDate(v.date);
+      if(currentFilter!=="all" && v.type!==currentFilter) return false;
+      if(selName && v.name!==selName) return false;
+      if(startDate && current < startDate) return false;
+      if(endDate   && current > endDate)   return false;
+      return true;
+    });
+
+  /* 1) 뼈대 즉시 렌더 (썸네일 + 이름 + 날짜) */
+  box.innerHTML = list.map(v=>{
+    const link = v.external || `https://youtu.be/${v.videoId}`;
+
+    let media, titleHtml;
+    if(v.external){
+      const cached = previewCache[v.external];
+      titleHtml = esc(cached ? cached.title : "외부 링크");
+      media = `
+        <div class="preview" data-ext="${esc(v.external)}">
+          <div class="preview-title">${esc(cached ? cached.title : "불러오는 중…")}</div>
+          <div class="preview-url">${esc(v.external)}</div>
+        </div>`;
+    } else {
+      const cached = ytCache[v.videoId];
+      titleHtml = esc(cached || "제목 불러오는 중…");
+      media = `<img loading="lazy" src="https://img.youtube.com/vi/${esc(v.videoId)}/0.jpg">`;
+    }
+
+    return `
+      <div class="card" onclick="window.open('${esc(link)}','_blank')">
+        <div class="name-bar ${v.type}">${esc(v.name)}</div>
+        <div class="thumb-wrap">${media}</div>
+        <div class="info">
+          <div class="title" ${v.videoId ? `data-ytid="${esc(v.videoId)}"` : ""}>${titleHtml}</div>
+          <div class="sub">${esc(v.date)}</div>
+          ${v.memo ? `<div class="memo">💬 ${esc(v.memo)}</div>` : ""}
+        </div>
+      </div>`;
+  }).join("");
+
+  /* 2) 유튜브 제목 배치로 가져와 채우기 */
+  const ytIds = list.filter(v=>v.videoId).map(v=>v.videoId);
+  if(ytIds.length){
+    fetchYTTitles(ytIds).then(()=>{
+      document.querySelectorAll(".title[data-ytid]").forEach(el=>{
+        const t = ytCache[el.getAttribute("data-ytid")];
+        if(t) el.textContent = t;
+      });
+    });
+  }
+
+  /* 3) 외부링크 미리보기는 화면에 보일 때만 로딩 */
+  if(previewObserver) previewObserver.disconnect();
+  previewObserver = new IntersectionObserver((entries, obs)=>{
+    entries.forEach(entry=>{
+      if(!entry.isIntersecting) return;
+      const node = entry.target;
+      obs.unobserve(node);
+      const extUrl = node.getAttribute("data-ext");
+      getPreview(extUrl).then(p=>{
+        const t = node.querySelector(".preview-title");
+        if(t) t.textContent = p.title;
+        const card = node.closest(".card");
+        const titleEl = card && card.querySelector(".title");
+        if(titleEl) titleEl.textContent = p.title;
+      });
+    });
+  }, { rootMargin: "200px" });
+
+  document.querySelectorAll(".preview[data-ext]").forEach(n=>{
+    if(!previewCache[n.getAttribute("data-ext")]) previewObserver.observe(n);
+  });
+}
+
+/* filter */
+function setFilter(t,i){
+  currentFilter = t;
+  document.querySelectorAll(".tab").forEach((el,idx)=>{
+    el.classList.toggle("active", idx===i);
+  });
+  render();
+}
+
+document.getElementById("nameFilter").addEventListener("change", render);
+document.getElementById("startDate").addEventListener("change", render);
+document.getElementById("endDate").addEventListener("change", render);
+
+loadAll();
+</script>
+
+</body>
+</html>
