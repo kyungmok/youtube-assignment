@@ -80,6 +80,9 @@ select, input {
   height:340px;
   display:flex;
   flex-direction:column;
+
+  text-decoration:none;
+  color:inherit;
 }
 
 /* 이름 */
@@ -437,7 +440,7 @@ function render(){
     }
 
     return `
-      <div class="card" onclick="window.open('${esc(link)}','_blank')">
+      <a class="card" href="${esc(link)}">
         <div class="name-bar ${v.type}">${esc(v.name)}</div>
         <div class="thumb-wrap">${media}</div>
         <div class="info">
@@ -445,7 +448,7 @@ function render(){
           <div class="sub">${esc(v.date)}</div>
           ${v.memo ? `<div class="memo">💬 ${esc(v.memo)}</div>` : ""}
         </div>
-      </div>`;
+      </a>`;
   }).join("");
 
   /* 2) 유튜브 제목 배치로 가져와 채우기 */
